@@ -5,17 +5,18 @@ use strict;
 use warnings;
 use PDL;
 use PDL::IO::Pic;
+use PDL::Image2D;
 use Getopt::Long;
 
 my $population_size = 5000;
 my $mating_from_best = 50;
-my $mate_times = 2; # best integer > 1
-my $mutation_rate = 0.02; # probability (ish) per gene
-my $board_size = 42;
+my $mate_times = 2; # should be an integer > 1
+my $mutation_rate = 1/6; # probability (ish) per gene
+my $board_size = 16;
 my $max_piece_size = 5; # all pieces fit in 4x4 square
 my $prefix = 'best';
-my $output_frequency = 10; # save a PNG every N generations
-
+my $output_frequency = 1; # save a PNG every N generations
+my $neighbour_kernel = pdl([1,1,1],[1,0,1],[1,1,1]);
 
 GetOptions("prefix=s"=>\$prefix);
 
@@ -130,31 +131,20 @@ for (my $i=0; $i<$population_size; $i++) {
 my $generation = 0;
 while (++$generation) {
   # sort the population by fitness (less negative the better - zero is best)
-  my @fitnesses = map { my $fitness = evaluate_individual($_) } @population;
+  my @fitnesses = map { evaluate_individual($_) } @population;
   my @sorted_indexes = sort { $fitnesses[$b] <=> $fitnesses[$a] } 0 .. $population_size-1;
   @population = @population[ @sorted_indexes ];
 
-
-  # save an image of the best board so far
-  my $fitness = $fitnesses[0];
+  my $fitness =  evaluate_individual($population[0]);
   my $worst_fitness = evaluate_individual($population[$#population]);
 
   warn "generation\t$generation\tbest\t$fitness\tworst\t$worst_fitness\n";
+
   if ($generation % $output_frequency == 0 || $fitness == 0) {
+    # save an image of the best board so far
     my $pdl = pretty_image($population[0]);
     $pdl->slice(":,-1:-$board_size")->wpic(sprintf "${prefix}_%05d_%d.png", $generation, $fitness);
   }
-
-#  # and print out the instructions to build it!
-#  my $best_indiv = $population[0];
-#  open(OUT, ">best.txt");
-#  foreach my $piece_info (@$best_indiv) {
-#    my $piece = $pieces[$piece_info->{index}]->copy;
-#    $piece = flip($piece) if $piece_info->{flip};
-#    $piece = rotate90($piece) for (1..$piece_info->{rotate});
-#    print OUT "$piece goes at $piece_info->{trans_x},$piece_info->{trans_y}\n\n";
-#  }
-#  close(OUT);
 
   last if ($fitness == 0); # hurray!
 
@@ -179,7 +169,7 @@ while (++$generation) {
 # returns (fitness, board) in array context
 #
 sub evaluate_individual {
-  my ($individual, $greyscale) = @_;
+  my ($individual) = @_;
   my $board = zeroes($board_size, $board_size);
 
   # add all the pieces to an empty board
@@ -201,13 +191,18 @@ sub evaluate_individual {
   my ($ymin, $ymax) = minmax(which($y_summary>0));
 
   # sum up offending cells withing the bbox
-  my $bbox = $board->slice("$xmin:$xmax,$ymin:$ymax");
-  # warn "bbox $xmin:$xmax,$ymin:$ymax\n" if (wantarray);
-  my $gaps = sum($bbox==0);
-  my $overlaps = sum($bbox>1);
-  my $fitness = -1*$gaps - 100*$overlaps;
+  # my $bbox = $board->slice("$xmin:$xmax,$ymin:$ymax");
+  # warn "bbox $xmin:$xmax,$ymin:$ymax\n";
 
-  return wantarray ? ($fitness, $board) : $fitness;
+  my $gaps = $board==0;
+  my $neighbour_sums = $board->conv2d($neighbour_kernel, { Boundary=>'Default' }); # wrapping
+  my $gap_neighbour_sums = $gaps*$neighbour_sums;
+
+  my $overlaps = sum($board>1);
+
+  my $fitness = -1*sum($gap_neighbour_sums) - 1000*$overlaps;
+
+  return $fitness;
 }
 
 #
