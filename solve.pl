@@ -254,14 +254,15 @@ sub mutate {
 
     while (rand(1) < $mutation_rate) {
       if (rand(1) < 1/$mut_types) {
-	$piece_info->{trans_x} += int(rand(7))-3;
-	$piece_info->{trans_x} = 0 if ($piece_info->{trans_x} < 0);
-	$piece_info->{trans_x} = $board_size-$max_piece_size-1 if ($piece_info->{trans_x} > $board_size-$max_piece_size-1);
+	$piece_info->{trans_x} += random_offset($board_size);
+	# bounds checks have to 'teleport' otherwise edges become refuge from mutation
+	$piece_info->{trans_x} = int(rand($board_size-$max_piece_size)) if ($piece_info->{trans_x} < 0);
+	$piece_info->{trans_x} = int(rand($board_size-$max_piece_size)) if ($piece_info->{trans_x} > $board_size-$max_piece_size-1);
       }
       if (rand(1) < 1/$mut_types) {
-	$piece_info->{trans_y} += int(rand(7))-3;
-	$piece_info->{trans_y} = 0 if ($piece_info->{trans_y} < 0);
-	$piece_info->{trans_y} = $board_size-$max_piece_size-1 if ($piece_info->{trans_y} > $board_size-$max_piece_size-1);
+	$piece_info->{trans_y} += random_offset($board_size);
+	$piece_info->{trans_y} = int(rand($board_size-$max_piece_size)) if ($piece_info->{trans_y} < 0);
+	$piece_info->{trans_y} = int(rand($board_size-$max_piece_size)) if ($piece_info->{trans_y} > $board_size-$max_piece_size-1);
       }
       if (rand(1) < 1/$mut_types) {
 	$piece_info->{rotation} += int(rand(4));
@@ -286,3 +287,8 @@ sub rotate90 {
   return flip($pdl)->transpose;
 }
 
+sub random_offset {
+  my $max = shift;
+  my $direction = rand(1)<0.5 ? -1 : 1;
+  return $direction*int(rand(1)*rand(1)*$max);
+}
