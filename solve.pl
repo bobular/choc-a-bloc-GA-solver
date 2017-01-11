@@ -200,7 +200,7 @@ sub evaluate_individual {
 
   my $overlaps = sum($board>1);
 
-  my $fitness = -1*sum($gap_neighbour_sums) - 1000*$overlaps;
+  my $fitness = -1*sum($gap_neighbour_sums*$gap_neighbour_sums) - 1000*$overlaps;
 
   return $fitness;
 }
