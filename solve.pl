@@ -9,16 +9,20 @@ use PDL::Image2D;
 use Getopt::Long;
 
 my $population_size = 5000;
-my $mating_from_best = 50;
+my $mating_from_best = 500;
 my $mate_times = 2; # should be an integer > 1
-my $mutation_rate = 1/6; # probability (ish) per gene
+my $mutation_rate = 1/12; # probability (ish) per gene
 my $board_size = 16;
 my $max_piece_size = 5; # all pieces fit in 4x4 square
 my $prefix = 'best';
 my $output_frequency = 1; # save a PNG every N generations
 my $neighbour_kernel = pdl([1,1,1],[1,0,1],[1,1,1]);
+my $quiet; # only save best so far images and print no progress line
 
-GetOptions("prefix=s"=>\$prefix);
+GetOptions(
+	   "prefix=s"=>\$prefix,
+	   "quiet"=>\$quiet,
+	  );
 
 
 my @pieces =
@@ -129,6 +133,7 @@ for (my $i=0; $i<$population_size; $i++) {
 
 # loop forever
 my $generation = 0;
+my $best_fitness;
 while (++$generation) {
   # sort the population by fitness (less negative the better - zero is best)
   my @fitnesses = map { evaluate_individual($_) } @population;
@@ -138,22 +143,28 @@ while (++$generation) {
   my $fitness =  evaluate_individual($population[0]);
   my $worst_fitness = evaluate_individual($population[$#population]);
 
-  warn "generation\t$generation\tbest\t$fitness\tworst\t$worst_fitness\n";
+  warn "generation\t$generation\tbest\t$fitness\tworst\t$worst_fitness\n" unless ($quiet);
 
-  if ($generation % $output_frequency == 0 || $fitness == 0) {
-    # save an image of the best board so far
+  my $new_best;
+  if (!defined $best_fitness || $fitness > $best_fitness) {
+    $best_fitness = $fitness;
+    $new_best = 'true';
+  }
+
+  if ((!$quiet && $generation % $output_frequency == 0) || ($quiet && $new_best)) {
+    # save an image of the best board this generation
     my $pdl = pretty_image($population[0]);
     $pdl->slice(":,-1:-$board_size")->wpic(sprintf "${prefix}_%05d_%d.png", $generation, $fitness);
   }
 
-  last if ($fitness == 0); # hurray!
+  # last if ($fitness == 0); # current fitness func doesn't go to zero
 
   # take the top X and make next generation
   my @next_population;
   while (@next_population < $population_size) {
     my $mate1 = splice(@population, int(rand($mating_from_best)), 1);
     my $mate2 = splice(@population, int(rand($mating_from_best)), 1);
-    # mate them X times
+    # mate them X times to make 2X offspring
     foreach (1 .. $mate_times) {
       push @next_population, mate($mate1, $mate2);
     }
