@@ -9,7 +9,7 @@ use PDL::Image2D;
 use Getopt::Long;
 
 my $population_size = 5000;
-my $mating_from_best = 500;
+my $mating_from_best = 2000;
 my $mate_times = 2; # should be an integer > 1
 my $mutation_rate = 1/12; # probability (ish) per gene
 my $board_size = 16;
@@ -196,11 +196,10 @@ sub evaluate_individual {
   # now calculate the fitness
 
   # find a bounding box
-  my $x_summary = $board->mv(-1,0)->maximum;
-  my ($xmin, $xmax) = minmax(which($x_summary>0));
-  my $y_summary = $board->maximum;
-  my ($ymin, $ymax) = minmax(which($y_summary>0));
-
+  # my $x_summary = $board->mv(-1,0)->maximum;
+  # my ($xmin, $xmax) = minmax(which($x_summary>0));
+  # my $y_summary = $board->maximum;
+  # my ($ymin, $ymax) = minmax(which($y_summary>0));
   # sum up offending cells withing the bbox
   # my $bbox = $board->slice("$xmin:$xmax,$ymin:$ymax");
   # warn "bbox $xmin:$xmax,$ymin:$ymax\n";
@@ -276,10 +275,10 @@ sub mutate {
 	$piece_info->{trans_y} = int(rand($board_size-$max_piece_size)) if ($piece_info->{trans_y} > $board_size-$max_piece_size-1);
       }
       if (rand(1) < 1/$mut_types) {
-	$piece_info->{rotation} += int(rand(4));
+	$piece_info->{rotation} = int(rand(4));
       }
       if (rand(1) < 1/$mut_types) {
-	$piece_info->{flip} += int(rand(2));
+	$piece_info->{flip} = int(rand(2));
       }
     }
 
